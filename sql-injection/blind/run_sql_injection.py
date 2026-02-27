@@ -124,6 +124,22 @@ def have_headers():
         extractor.set_header_parameters(headers_input)
     print("\r\n")
 
+def question_2():
+    extracted_data = extractor.persistence.saved_data.get("extracted_data", {})
+    there_are_all = True
+    if extracted_data.tables.get("total_tables_num", 0) > 0 and extracted_data.tables.total_tables_num == len():
+        for i in range(extracted_data.tables.total_tables_num):
+            if not extracted_data.tables.table_names[i] or not extracted_data.tables.table_names[i].table_name or not extracted_data.tables.table_names[i].table_length or extracted_data.tables.table_names[i].table_length != len(extracted_data.tables.table_names[i].table_name):
+                there_are_all = False
+                break
+
+        if there_are_all:
+            return f"Sono stati trovati i nomi di tutte le tabelle, vuoi riprovare ?"
+        else:
+            return f"Si è già scoperto che ci sono {extracted_data.tables.get("total_tables_num")} tabelle, vuoi estrarne i nomi ?"
+    else:
+        return "Estrai le tabelle presenti nel DB"
+
 
 
 def run_cli():
@@ -142,19 +158,26 @@ def run_cli():
 
     extracted_data = extractor.persistence.saved_data.get("extracted_data", {})
     db_name = extracted_data.get("db_name", None)
-    tables = extracted_data.get("tables", {})
-    question_1 = f'E\' già stato trovato il DB "{db_name}", vuoi riprovare ?' if db_name else "Estrai il nome del DB"
-    question_2 = f"Si è già scoperto che ci sono {tables.get("total_tables_num")} tabelle, vuoi estrarne i nomi ?" if tables.get("total_tables_num", 0) > 0 else "Estrai le tabelle presenti nel DB"
+    table_name = extracted_data.get("target", {}).get("table_name", None)
+    q_0 = "/6" if table_name else ""
+    q_1 = f'E\' già stato trovato il DB "{db_name}", vuoi riprovare ?' if db_name else "Estrai il nome del DB"
+    q_2 = question_2()
+    q_3 = f'Estrai i nomi delle colonne di "{table_name}"' if table_name else "Estrai i nomi delle colonne di una tabella"
+    q_4 = f'Estrai i nomi delle colonne di "{table_name}"' if table_name else "Estrai i nomi delle colonne di una tabella"
 
     print("\r\n" + "=" * 50)
     print("Funzioni disponibili:")
-    print(f"1. {question_1}")
-    print(f"2. {question_2}")
-    print("3. Estrai le colonne e il numero di righe di una tabella")
-    print("4. Estrai il contenuto di uno specifico record")
+    print(f"1. {q_1}")
+    print(f"2. {q_2}")
+    print(f"3. {q_3}")
+    print(f"4. Estrai il numero di righe presenti nella tabella {table_name}")
+    print("5. Estrai il contenuto di uno specifico record")
+    if table_name:
+        print("6. Cambia tabella")
+    print("\r\n" + "=" * 50)
 
     while True:
-        scelta = input("\n=> Seleziona una funzione (1/2/3/4) oppure 'q' per uscire: ").strip().lower()
+        scelta = input(f"\n=> Seleziona una funzione (1/2/3/4/5{q_0}) oppure 'q' per uscire: ").strip().lower()
 
         if scelta == "q":
             print("Uscita dal programma.")
@@ -171,19 +194,28 @@ def run_cli():
             else:
                 print("Errore: il nome della tabella è obbligatorio!")
         elif scelta == "4":
-            column_name = input("Inserisci il nome della colonna: ").strip()
-            table_name = input("Inserisci il nome della tabella: ").strip()
-            row_number = input("Inserisci il numero della riga (partendo da 1): ").strip()
-            if table_name and column_name and row_number:
+            q_4_b = f'E\' stata selezionata la tabella "{table_name}", vuoi cambiarla (premi INVIO per lasciare quella selezionata) ?' if table_name else "Inserisci il nome della tabella: "
+            table_name = input(q_4_b).strip()
+            if table_name:
                 extractor.set_table_target(table_name)
-                try:
-                    extractor.extract_record_content(column_name, int(row_number))
-                except ValueError:
-                    print("Errore: il numero di riga deve essere un intero.")
+            extractor.extract_rows_length()
+        
+        elif scelta == "5":
+            column_name = input("Inserisci il nome della colonna: ").strip()
+            row_number = input("Inserisci il numero della riga (partendo da 1): ").strip()
+            if column_name and row_number:
+                extractor.extract_record_content(column_name, int(row_number))
+            else:
+                print("Errore: tutti i parametri sono obbligatori!")
+        
+        elif scelta == "6":
+            table_name = input("Inserisci il nome della tabella: ").strip()
+            if table_name:
+                extractor.set_table_target(table_name)
             else:
                 print("Errore: tutti i parametri sono obbligatori!")
         else:
-            print("Scelta non valida. Inserisci 1, 2, 3 oppure 4.")
+            print("Scelta non valida.")
 
     print("\n" + "=" * 50)
     print("Programma terminato")

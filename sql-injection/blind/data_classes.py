@@ -126,13 +126,14 @@ class ExtractedDataTarget:
     def extraced_values(self, values: list[ExtractedDataValues]):
         self.extracted_values = values
 
-
+#TODO: rendere "target" plurale "targets"
 @dataclass
 class ExtractedData:
     db_name: Optional[str] = None
     db_name_length: Optional[int] = 0
     tables: ExtractedDataTables = field(default_factory=ExtractedDataTables)
     target: ExtractedDataTarget = field(default_factory=ExtractedDataTarget)
+    # targets: list[ExtractedDataTarget] = field(default_factory=list)
 
     def __post_init__(self):
         if isinstance(self.tables, dict):

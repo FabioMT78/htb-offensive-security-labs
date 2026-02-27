@@ -11,10 +11,8 @@ from utility.persistence import PersistenceUtility
 from random import randrange, random
 
 
-# TODO: implementare multi-threading per estrazione dei dati in parallelo (ad esempio mentre conta la lunghezza del nome altri thread cercano di estrarre i primi 3 caratteri e poi i restanti in parallelo) - lasciare sempre un thread libero
-# TODO: implementare delay/sleep con valori casuali per rendere l'estrazione meno rilevabile
-# TODO: implementare multi connessioni: ovvero + interfacce virtuali con MAC diversi (random) e user-agent diversi (random) sarebbe interessante anche che fossero collegate a VPN diverse
-
+#TODO: implementare funzione per indovinare i nomi delle tabelle e colonne ad esempio arrivati a 4 lettere si provano le parole che potrebbero funzionare, quindi in parallelo due request una per la lettera una che testa via via le parole con quel numero di lettere
+# serve lista nomi db e colonne comuni ... sarebbe da cercare in seclist tipo con un comando grep (anche se così vincolo luso dello script a Linux...)
 
 class BlindSQLIExtractorBase:
     settings: Settings
