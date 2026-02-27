@@ -147,3 +147,5 @@ class ExtractedData:
             self.target = ExtractedDataTarget(**target_data)
         elif self.target is None:
             self.target = ExtractedDataTarget()
+
+

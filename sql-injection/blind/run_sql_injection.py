@@ -1,5 +1,6 @@
 from blind_sqli_time_extractor import BlindSqlITimeExtractor
 import os
+from data_classes import ExtractedData
 
 
 extractor = BlindSqlITimeExtractor()
@@ -36,6 +37,7 @@ def check_stored_data():
             print("\r\n\r\n=> Sono stati trovati dei dati estratti in precedenza:")
             # TODO: la visualizzazione fa schifo va decisamente migliorata !
             extractor.persistence.print_data(saved_data.get("extracted_data", {}))
+            extractor.use_extracted_data()
             extracted_data_exist = True
 
     return {"settings": use_saved_settings, "extracted_data": extracted_data_exist}
@@ -107,6 +109,11 @@ def set_parameter_target():
 def set_optional_db_name():
     db_name_input = input("=> Inserisci il nome del database (OPZIONALE): ").strip()
     if db_name_input:
+        if extractor.extracted_data.db_name != db_name_input:
+            print(f"Il DB inserito ({db_name_input}) è diverso da quello precedentemente salvato ({extractor.extracted_data.db_name})! Cambiando il nome del DB verranno persi tutti i dati di {extractor.extracted_data.db_name}")
+            confirmation = input("Procedere ugualmente (y/n) ?")
+            if confirmation.strip() == 'y':
+                extractor.extracted_data = ExtractedData()
         extractor.set_db_name(db_name_input)
         print(f"Nome del database selezionato: {extractor.extracted_data.db_name}\n")
 
@@ -137,7 +144,7 @@ def run_cli():
     db_name = extracted_data.get("db_name", None)
     tables = extracted_data.get("tables", {})
     question_1 = f'E\' già stato trovato il DB "{db_name}", vuoi riprovare ?' if db_name else "Estrai il nome del DB"
-    question_2 = f"Sono già state trovate {tables.get("total_tables_num")} tabelle, vuoi riprovare ?" if tables.get("total_tables_num", 0) > 0 else "Estrai le tabelle presenti nel DB"
+    question_2 = f"Si è già scoperto che ci sono {tables.get("total_tables_num")} tabelle, vuoi estrarne i nomi ?" if tables.get("total_tables_num", 0) > 0 else "Estrai le tabelle presenti nel DB"
 
     print("\r\n" + "=" * 50)
     print("Funzioni disponibili:")
@@ -147,7 +154,7 @@ def run_cli():
     print("4. Estrai il contenuto di uno specifico record")
 
     while True:
-        scelta = input("\nSeleziona una funzione (1/2/3/4) oppure 'q' per uscire: ").strip().lower()
+        scelta = input("\n=> Seleziona una funzione (1/2/3/4) oppure 'q' per uscire: ").strip().lower()
 
         if scelta == "q":
             print("Uscita dal programma.")

