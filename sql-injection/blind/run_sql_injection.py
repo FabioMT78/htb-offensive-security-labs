@@ -125,20 +125,25 @@ def have_headers():
     print("\r\n")
 
 def question_2():
-    extracted_data = extractor.persistence.saved_data.get("extracted_data", {})
-    there_are_all = True
-    if extracted_data.tables.get("total_tables_num", 0) > 0 and extracted_data.tables.total_tables_num == len():
-        for i in range(extracted_data.tables.total_tables_num):
-            if not extracted_data.tables.table_names[i] or not extracted_data.tables.table_names[i].table_name or not extracted_data.tables.table_names[i].table_length or extracted_data.tables.table_names[i].table_length != len(extracted_data.tables.table_names[i].table_name):
-                there_are_all = False
-                break
+    extracted_data = extractor.extracted_data
+    total_tables = extracted_data.tables.total_tables_num or 0
+    table_names = extracted_data.tables.table_names or []
 
-        if there_are_all:
-            return f"Sono stati trovati i nomi di tutte le tabelle, vuoi riprovare ?"
-        else:
-            return f"Si è già scoperto che ci sono {extracted_data.tables.get("total_tables_num")} tabelle, vuoi estrarne i nomi ?"
-    else:
+    if total_tables <= 0:
         return "Estrai le tabelle presenti nel DB"
+
+    all_names_found = len(table_names) >= total_tables and all(
+        table_entry is not None
+        and table_entry.table_name
+        and table_entry.table_length
+        and table_entry.table_length == len(table_entry.table_name)
+        for table_entry in table_names[:total_tables]
+    )
+
+    if all_names_found:
+        return "Sono stati trovati i nomi di tutte le tabelle, vuoi riprovare ?"
+
+    return f"Si è già scoperto che ci sono {total_tables} tabelle, vuoi estrarne i nomi ?"
 
 
 
@@ -156,9 +161,9 @@ def run_cli():
         have_headers()
         set_optional_db_name()
 
-    extracted_data = extractor.persistence.saved_data.get("extracted_data", {})
-    db_name = extracted_data.get("db_name", None)
-    table_name = extracted_data.get("target", {}).get("table_name", None)
+    extracted_data = extractor.extracted_data
+    db_name = extracted_data.db_name
+    table_name = extracted_data.target.table_name
     q_0 = "/6" if table_name else ""
     q_1 = f'E\' già stato trovato il DB "{db_name}", vuoi riprovare ?' if db_name else "Estrai il nome del DB"
     q_2 = question_2()
@@ -201,7 +206,14 @@ def run_cli():
             extractor.extract_rows_length()
         
         elif scelta == "5":
-            column_name = input("Inserisci il nome della colonna: ").strip()
+            q_5_a = ''
+            print("Scegli la colonna tra:")
+            for i, c_n in enumerate(extracted_data.target.column_names):
+                print(f"{i} - {extracted_data.target.column_names[i].column_name}")
+                q_5_a += str(i) + ','
+
+            column_number = input(f"\r\nScegli la colonna ({q_5_a}): ").strip()
+            column_name = extracted_data.target.column_names[(int(column_number))].column_name
             row_number = input("Inserisci il numero della riga (partendo da 1): ").strip()
             if column_name and row_number:
                 extractor.extract_record_content(column_name, int(row_number))
