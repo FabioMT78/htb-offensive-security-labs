@@ -26,7 +26,7 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
                 return
             print(f"Il nome del DB è lungo {db_name_length} caratteri.")
             self.extracted_data.db_name_length = db_name_length
-            self.save_extracted_data()
+            self.save_data()
 
             time.sleep(2)
 
@@ -40,7 +40,7 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
         print(f"Il nome del DB è: {db_name}")
         if db_name:
             self.extracted_data.db_name = db_name
-            self.save_extracted_data()
+            self.save_data()
 
         return self.extracted_data.db_name
 
@@ -61,7 +61,7 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
                 return
             print(f"Il numero di tabelle nel DB è: {num_tables}")
             self.extracted_data.tables.total_tables_num = num_tables
-            self.save_extracted_data()
+            self.save_data()
         elif num_tables_input:
             self.extracted_data.tables.total_tables_num = num_tables_input
 
@@ -72,7 +72,7 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
                 )
                 print(f"Tabella {i} - lunghezza nome: {table_name_length}")
                 self.extracted_data.tables.table_names[i].table_length = table_name_length
-                self.save_extracted_data()
+                self.save_data()
 
             q = f"select table_name from information_schema.tables where table_catalog='{self.extracted_data.db_name}' order by table_name offset {i} rows fetch next 1 rows only"
             table_name = (
@@ -83,7 +83,7 @@ class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
             print(f"Tabella {i} - nome: {table_name}")
             if table_name:
                 self.extracted_data.tables.table_names[i].table_name = table_name
-                self.save_extracted_data()
+                self.save_data()
 
         return self.extracted_data.tables.table_names
 

@@ -71,6 +71,7 @@ class BlindSQLIExtractorBase:
             value = value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
         setattr(self.settings, key, value)
+        self.save_data()
         return True
     def get_setting(self, key: str, default: Any = None) -> Any:
         if key not in Settings.__dataclass_fields__:
@@ -94,6 +95,7 @@ class BlindSQLIExtractorBase:
             return
         
         self.settings.header_parameters[parameters[0]] = parameters[1].strip()
+        self.save_data()
     def set_parameter_target(self, parameter: str):
         if not self.settings.header_parameters:
             print(
@@ -119,6 +121,7 @@ class BlindSQLIExtractorBase:
             return
 
         self.settings.parameter_target = parameter
+        self.save_data()
 
     def add_header_parameters(self, header: object):
         if not self.settings.header_parameters:
@@ -336,6 +339,7 @@ class BlindSQLIExtractorBase:
         return val
 
     
+
     def use_saved_settings(self):
         try:
             merged_settings = self.persistence.merge_with_defaults(
@@ -367,7 +371,7 @@ class BlindSQLIExtractorBase:
             print(f"Errore durante il ripristino dei dati: {e}")
             return None
 
-    def save_extracted_data(self):
+    def save_data(self):
         data_to_save = {
             "settings": self.persistence.to_serializable(self.settings),
             "extracted_data": self.persistence.to_serializable(self.extracted_data),

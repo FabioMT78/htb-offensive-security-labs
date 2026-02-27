@@ -16,7 +16,7 @@ def intestazione():
     print(" - Aver ottenuto l'IP da HTB e di aver attivato la VPN")
     print(" - Aver individuato una vulnerabilità di SQL Injection di tipo time-based - Burp repeater aitua molto (non dimenticare di codificare le query che inserisci)")
     print("=" * 100 + "\r\n\r\n\r\n\r\n")
-def check_stored_data_check():
+def check_stored_data():
     use_saved_settings = False
     extracted_data_exist = False
     if extractor.persistence.exists():
@@ -38,10 +38,7 @@ def check_stored_data_check():
             extractor.persistence.print_data(saved_data.get("extracted_data", {}))
             extracted_data_exist = True
 
-    if use_saved_settings or extracted_data_exist:
-        return {"settings": extractor.settings, "extracted_data": extractor.extracted_data}
-    else:
-        return False
+    return {"settings": use_saved_settings, "extracted_data": extracted_data_exist}
 
 def define_url():
     url_input = input(f"Inserisci l'url da utilizzare (default: {extractor.settings.url}): ").strip()
@@ -49,7 +46,7 @@ def define_url():
         extractor.set_url(url_input)
     print(f"URL selezionato: {extractor.settings.url}\n")
 def define_delay():
-    delay_input = input(f"Inserisci il delay da utilizzare (default: {extractor.settings.delay}): ").strip()
+    delay_input = input(f"=> Inserisci il delay da utilizzare (default: {extractor.settings.delay}): ").strip()
     if delay_input:
         try:
             extractor.set_delay(int(delay_input))
@@ -57,15 +54,12 @@ def define_delay():
             print("Errore: il delay deve essere un numero intero.")
     print(f"Delay selezionato: {extractor.settings.delay}\n")
 def define_vector():
-    print("Definisci il vettore per l'injection:")
+    print("=> Definisci il vettore per l'injection:")
     print("1. via POST")
     print("2. via GET")
     print("3. via HEADER")
-    vector_input = input("Seleziona il vettore (1/2/3) oppure 'q' per uscire: ").strip()
+    vector_input = input("Seleziona il vettore (1/2/3) oppure 'q' per uscire (default 3): ").strip()
     if not vector_input:
-        if not extractor.settings.hurry_up:
-            print("Il parametro è obbligatorio !")
-            return 
         vector_input = '3'
     if vector_input != '1' and vector_input != '2' and vector_input != '3' and vector_input.lower() != 'q':
         print("Vettore non valido. Inserisci 1, 2 oppure 3.")
@@ -74,7 +68,7 @@ def define_vector():
     return vector_input
 
 def set_parameters(vector_input, for_the_target=True):
-    params_input = input("Inserisci i parametri da utilizzare per l'attacco - 1 SOLA RIGA - (es. 'Cookie: PHPSESSID=nqgure9mkvdgttujk25g2mehgu; TrackingId=5ada769c29c97c7b24be712c4c5702f6' per l'HEADER): ").strip()
+    params_input = input("=> Inserisci i parametri da utilizzare per l'attacco - 1 SOLA RIGA - (es. 'Cookie: PHPSESSID=nqgure9mkvdgttujk25g2mehgu; TrackingId=5ada769c29c97c7b24be712c4c5702f6' per l'HEADER): ").strip()
     if not params_input:
         if not extractor.settings.hurry_up:
             print("I parametri sono obbligatori !")
@@ -90,7 +84,7 @@ def set_parameters(vector_input, for_the_target=True):
     elif vector_input == "3":
         extractor.set_header_parameters(params_input)
         if for_the_target:
-            delimiter_input = input(f"Inserisci il delimitatore utilizzato per separare i parametri nell'header - ad es. ';' - (default: {extractor.settings.delimiter}): ").strip()
+            delimiter_input = input(f"=> Inserisci il delimitatore utilizzato per separare i parametri nell'header (default: {extractor.settings.delimiter}): ").strip()
             if delimiter_input and for_the_target:
                 extractor.set_delimiter(delimiter_input)
             print(f"Delimitatore selezionato: '{extractor.settings.delimiter}'\n")
@@ -99,7 +93,7 @@ def set_parameters(vector_input, for_the_target=True):
         print("Uscita dal programma.")
         return
 def set_parameter_target():
-    param_target_input = input("Inserisci il nome del parametro da utilizzare per l'injection (es. 'TrackingId' per HEADER): ").strip()
+    param_target_input = input("=> Inserisci il nome del parametro da utilizzare per l'injection (es. 'TrackingId' per HEADER): ").strip()
     if not param_target_input:
         if not extractor.settings.hurry_up:
             print("Il nome del parametro target è obbligatorio !")
@@ -111,13 +105,13 @@ def set_parameter_target():
     if not r:
         return
 def set_optional_db_name():
-    db_name_input = input("Inserisci il nome del database (OPZIONALE): ").strip()
+    db_name_input = input("=> Inserisci il nome del database (OPZIONALE): ").strip()
     if db_name_input:
         extractor.set_db_name(db_name_input)
-    print(f"Nome del database selezionato: {extractor.db_name}\n")
+        print(f"Nome del database selezionato: {extractor.extracted_data.db_name}\n")
 
 def have_headers():
-    print("Ci sono degli header da impostare (es. 'User-Agent: Mozilla/5.0, Referer: http://example.com') ?")
+    print("=> Vuoi aggiungere degli HEADER (es. 'User-Agent: Mozilla/5.0, Referer: http://example.com') ?")
     headers_input = input("Inserisci tutti gli header in un'unica stringa oppure premi INVIO per saltare: ").strip()
     if headers_input:
         extractor.set_header_parameters(headers_input)
@@ -127,9 +121,9 @@ def have_headers():
 
 def run_cli():
     intestazione()
-    stored_data_check = check_stored_data_check()
+    use_stored_data = check_stored_data()
 
-    if not stored_data_check or not stored_data_check.get("settings"):
+    if not use_stored_data or not use_stored_data.get("settings"):
         define_url()
         define_delay()
         vector_input = define_vector()
@@ -145,6 +139,7 @@ def run_cli():
     question_1 = f'E\' già stato trovato il DB "{db_name}", vuoi riprovare ?' if db_name else "Estrai il nome del DB"
     question_2 = f"Sono già state trovate {tables.get("total_tables_num")} tabelle, vuoi riprovare ?" if tables.get("total_tables_num", 0) > 0 else "Estrai le tabelle presenti nel DB"
 
+    print("\r\n" + "=" * 50)
     print("Funzioni disponibili:")
     print(f"1. {question_1}")
     print(f"2. {question_2}")

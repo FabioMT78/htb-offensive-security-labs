@@ -83,6 +83,9 @@ class PersistenceUtility:
         indent: int = 4,
     ):
         try:
+            if not self.exists():
+                self.storage_dir.mkdir(parents=True, exist_ok=True)
+                
             with open(self.file_path, "w", encoding="utf-8") as file_obj:
                 if self.extension == "json":
                     json.dump(payload, file_obj, indent=indent)
