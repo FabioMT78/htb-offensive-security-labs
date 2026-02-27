@@ -1,8 +1,47 @@
-from blind_sqli_time_extractor import BlindSQLITimeExtractor
+from blind_sqli_time_extractor import BlindSqlITimeExtractor
 import os
 
 
-extractor = BlindSQLITimeExtractor()
+extractor = BlindSqlITimeExtractor()
+
+def intestazione():
+    os.system("cls" if os.name == "nt" else "clear")
+    print("\r\n" + "=" * 100)
+    print("CONSOLE INTERATTIVA - Blind SQL Injection - Time-Based\r\n")
+    print("Questo micro-tool è da utilizzare solo dopo aver trovato la vulnerabilità per l'injection e aver verificato che sia di tipo time-based.\r\n")
+    print("Permette di estrarre informazioni dal database sfruttando la vulnerabilità di SQL Injection in modalità blind, utilizzando il delay come canale " \
+    "di comunicazione per dedurre i dati.\r\n")
+    print("Ho provato a sostenere l'esame più volte con SQLMap ma non sono mai riuscito ad estrarre alcuna informazione, per questo ho realizzato questo tool.\r\n")
+    print("Quindi ricordati di:")
+    print(" - Aver ottenuto l'IP da HTB e di aver attivato la VPN")
+    print(" - Aver individuato una vulnerabilità di SQL Injection di tipo time-based - Burp repeater aitua molto (non dimenticare di codificare le query che inserisci)")
+    print("=" * 100 + "\r\n\r\n\r\n\r\n")
+def check_stored_data_check():
+    use_saved_settings = False
+    extracted_data_exist = False
+    if extractor.persistence.exists():
+        saved_data = extractor.persistence.load_data()
+
+        if saved_data is not None and "settings"  in saved_data:
+            print("=> Sono state trovate delle impostazioni salvate in precedenza:")
+            extractor.persistence.print_data(saved_data.get("settings", {}))
+            use_saved_settings_input = input("Vuoi utilizzare queste impostazioni (y/n) ?").strip().lower()
+        
+            if use_saved_settings_input == "y":
+                extractor.use_saved_settings()
+                use_saved_settings = True
+                print("Impostazioni caricate con successo !")
+        
+        if saved_data is not None and "extracted_data" in saved_data:
+            print("\r\n\r\n=> Sono stati trovati dei dati estratti in precedenza:")
+            # TODO: la visualizzazione fa schifo va decisamente migliorata !
+            extractor.persistence.print_data(saved_data.get("extracted_data", {}))
+            extracted_data_exist = True
+
+    if use_saved_settings or extracted_data_exist:
+        return {"settings": extractor.settings, "extracted_data": extractor.extracted_data}
+    else:
+        return False
 
 def define_url():
     url_input = input(f"Inserisci l'url da utilizzare (default: {extractor.settings.url}): ").strip()
@@ -81,85 +120,16 @@ def have_headers():
     print("Ci sono degli header da impostare (es. 'User-Agent: Mozilla/5.0, Referer: http://example.com') ?")
     headers_input = input("Inserisci tutti gli header in un'unica stringa oppure premi INVIO per saltare: ").strip()
     if headers_input:
-        extractor.set_header_parameters(headers_input, False)
+        extractor.set_header_parameters(headers_input)
     print("\r\n")
-
-def print_data(settings: dict):
-    print("\n" + "=" * 50)
-    for key, value in settings.__dict__.items():
-        if isinstance(value, dict) or isinstance(value, list):
-            if not value:
-                print(f"{key}: {{}}")
-                continue
-            print(f"{key}:")
-
-        if isinstance(value, dict):
-            for sub_key, sub_value in value.items():
-                print(f"  {sub_key}: {sub_value}")
-            continue
-
-        if isinstance(value, list):
-            for item in value:
-                print(f"  - {item}")
-            continue
-
-        print(f"{key}: {value}")
-    print("=" * 50 + "\n\r\n")
-
-def extact_db_name():
-    if extractor.extracted_data.db_name_length > 0:
-        print(f"E' già stata trovata la lunghezza del DB: {extractor.extracted_data.db_name_length}")
-
-        if extractor.extracted_data.db_name:
-            print(f"E' già stato trovato il nome del DB: {extractor.extracted_data.db_name}")
-            retry_input = input("Vuoi provare a estrarre nuovamente il nome del DB (y/n) ? ").strip().lower()
-            if retry_input != "y":
-                return
-    else:
-        table_length_input = input("Sai già la lunghezza del nome del DB (INVIO per saltare) ? Scrivilo a numeri: ").strip()
-        extractor.extracted_data.db_name_length = int(table_length_input) if table_length_input else None
-
-    extractor.extract_db_name()
 
 
 
 def run_cli():
-    os.system("cls" if os.name == "nt" else "clear")
-    print("\r\n" + "=" * 50)
-    print("CONSOLE INTERATTIVA - Blind SQL Injection - Time-Based\r\n")
-    print("Questo micro-tool è da utilizzare solo dopo aver trovato la vulnerabilità per l'injection e aver verificato che sia di tipo time-based.\r\n")
-    print("Permette di estrarre informazioni dal database sfruttando la vulnerabilità di SQL Injection in modalità blind, utilizzando il delay come canale " \
-    "di comunicazione per dedurre i dati.\r\n")
-    print("Ho provato a sostenere l'esame più volte con SQLMap ma non sono mai riuscito ad estrarre alcuna informazione, per questo ho realizzato questo tool.\r\n")
-    print("Quindi ricordati di:")
-    print(" - Aver ottenuto l'IP da HTB e di aver attivato la VPN")
-    print(" - Aver individuato una vulnerabilità di SQL Injection di tipo time-based - Burp repeater aitua molto (non dimenticare di codificare le query che inserisci)")
-    print("=" * 50 + "\r\n\r\n\r\n\r\n")
+    intestazione()
+    stored_data_check = check_stored_data_check()
 
-    use_saved_settings = False
-    use_saved_data = False
-    check_saved_settings = extractor.check_saved_settings()
-    if check_saved_settings:
-        load_settings_input = input("Sono state trovate delle impostazioni salvate in precedenza. Vuoi visualizzarle (y/n) ?").strip().lower()
-        if load_settings_input == "y":
-            saved_data = extractor.load_saved_data()
-            if saved_data is None or "settings" not in saved_data: return
-            print_data(saved_data['settings'])
-            use_saved_settings_input = input("Vuoi utilizzare queste impostazioni (y/n) ?").strip().lower()
-            if use_saved_settings_input == "y":
-                extractor.restore_saved_settings(saved_data['settings'])
-                use_saved_settings = True
-                print("Impostazioni caricate con successo !")
-            if saved_data is not None and "extracted_data" in saved_data:
-                print("Sono stati trovati dei dati estratti in precedenza:")
-                print_data(saved_data['extracted_data'])
-                use_saved_data_input = input("Vuoi visualizzarli (y/n) ?").strip().lower()
-                if use_saved_data_input == "y":
-                    extractor.restore_extracted_data(saved_data['extracted_data'])
-                    use_saved_data = True
-                    print("Dati caricati con successo !")
-
-    if not use_saved_settings:
+    if not stored_data_check or not stored_data_check.get("settings"):
         define_url()
         define_delay()
         vector_input = define_vector()
@@ -169,12 +139,15 @@ def run_cli():
         have_headers()
         set_optional_db_name()
 
-        print_data(extractor.settings)
-
+    extracted_data = extractor.persistence.saved_data.get("extracted_data", {})
+    db_name = extracted_data.get("db_name", None)
+    tables = extracted_data.get("tables", {})
+    question_1 = f'E\' già stato trovato il DB "{db_name}", vuoi riprovare ?' if db_name else "Estrai il nome del DB"
+    question_2 = f"Sono già state trovate {tables.get("total_tables_num")} tabelle, vuoi riprovare ?" if tables.get("total_tables_num", 0) > 0 else "Estrai le tabelle presenti nel DB"
 
     print("Funzioni disponibili:")
-    print("1. Estrai il nome del DB")
-    print("2. Estrai le tabelle presenti nel DB")
+    print(f"1. {question_1}")
+    print(f"2. {question_2}")
     print("3. Estrai le colonne e il numero di righe di una tabella")
     print("4. Estrai il contenuto di uno specifico record")
 
@@ -185,7 +158,7 @@ def run_cli():
             print("Uscita dal programma.")
             break
         elif scelta == "1":
-            extact_db_name()
+            extractor.extract_db_name()
         elif scelta == "2":
             num_tables_input = input("Sai già il numero di tabelle presenti nel DB (INVIO per saltare) ? Scrivilo a numeri: ").strip()
             extractor.extract_tables(num_tables_input)

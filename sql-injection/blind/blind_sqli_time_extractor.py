@@ -2,18 +2,19 @@ from blind_sqli_extractor_base import BlindSQLIExtractorBase
 import time
 
 
-class BlindSQLITimeExtractor(BlindSQLIExtractorBase):
+class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
 
     def set_db_name(self, db_name: str):
-        self.extracted_data.db_name = db_name
+        self.extracted_data.db_name = db_name.strip()
+        print(f"Nome del database impostato su: {self.extracted_data.db_name}")
 
     def set_table_target(self, table_name: str):
-        if self.extracted_data.tables.table_names and table_name not in self.extracted_data.tables.table_names:
+        if table_name.strip() not in self.extracted_data.tables.table_names:
             print(
                 f"Errore: la tabella '{table_name}' non è presente nella lista delle tabelle scoperte. Tabelle scoperte: {self.extracted_data.tables.table_names}"
             )
             return
-        self.extracted_data.target.table_name = table_name
+        self.extracted_data.target.table_name = table_name.strip()
 
     def extract_db_name(self):
         if self.extracted_data.db_name_length == 0:
