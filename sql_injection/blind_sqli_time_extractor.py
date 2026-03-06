@@ -1,9 +1,9 @@
-from blind_sqli_time_extractor import BlindSqlITimeExtractor
+from blind.time_extractor_module import TimeExtractorModule
 import os
-from data_classes import ExtractedData
+from shared.data_classes import ExtractedData
 
 
-extractor = BlindSqlITimeExtractor()
+extractor = TimeExtractorModule()
 
 def intestazione():
     os.system("cls" if os.name == "nt" else "clear")
@@ -165,7 +165,7 @@ def run_cli():
     db_name = extracted_data.db_name
     table_name = extracted_data.target.table_name
     q_0 = "/6" if table_name else ""
-    q_1 = f'E\' già stato trovato il DB "{db_name}", vuoi riprovare ?' if db_name else "Estrai il nome del DB"
+    q_1 = f'E\' già stato trovato il DB "{db_name}", vuoi cambiare DB ?' if db_name else "Estrai il nome del DB"
     q_2 = question_2()
     q_3 = f'Estrai i nomi delle colonne di "{table_name}"' if table_name else "Estrai i nomi delle colonne di una tabella"
     q_4 = f'Estrai i nomi delle colonne di "{table_name}"' if table_name else "Estrai i nomi delle colonne di una tabella"

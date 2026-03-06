@@ -1,9 +1,13 @@
-from blind_sqli_extractor_base import BlindSQLIExtractorBase
-import time
-from data_classes import ExtractedDataTableNames, ExtractedDataColumnNames, ExtractedDataValues, ExtractedDataTarget
+from extractor_base_module import ExtractorBaseModule
+from shared.data_classes import (
+    ExtractedDataTableNames,
+    ExtractedDataColumnNames,
+    ExtractedDataValues,
+    ExtractedDataTarget,
+)
 
 # TODO: ricontrollare gli sleep inseriti se forse non è meglio metterli laddove vengono invocate le request invece che dappertutto !
-class BlindSqlITimeExtractor(BlindSQLIExtractorBase):
+class TimeExtractorModule(ExtractorBaseModule):
 
     def set_db_name(self, db_name: str):
         self.extracted_data.db_name = db_name.strip()
