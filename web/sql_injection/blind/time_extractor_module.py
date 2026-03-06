@@ -1,4 +1,4 @@
-from extractor_base_module import ExtractorBaseModule
+from web.sql_injection.blind.base_extractor_module import BaseExtractorModule
 from shared.data_classes import (
     ExtractedDataTableNames,
     ExtractedDataColumnNames,
@@ -7,7 +7,7 @@ from shared.data_classes import (
 )
 
 # TODO: ricontrollare gli sleep inseriti se forse non è meglio metterli laddove vengono invocate le request invece che dappertutto !
-class TimeExtractorModule(ExtractorBaseModule):
+class TimeExtractorModule(BaseExtractorModule):
 
     def set_db_name(self, db_name: str):
         self.extracted_data.db_name = db_name.strip()

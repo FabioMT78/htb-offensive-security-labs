@@ -14,7 +14,7 @@ from random import randrange, random
 #TODO: implementare funzione per indovinare i nomi delle tabelle e colonne ad esempio arrivati a 4 lettere si provano le parole che potrebbero funzionare, quindi in parallelo due request una per la lettera una che testa via via le parole con quel numero di lettere
 # serve lista nomi db e colonne comuni ... sarebbe da cercare in seclist tipo con un comando grep (anche se così vincolo luso dello script a Linux...)
 
-class ExtractorBaseModule:
+class BaseExtractorModule:
     settings: Settings
     extracted_data: ExtractedData
     data_file_name: str
